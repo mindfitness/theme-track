@@ -54,10 +54,17 @@
 
         .btn { border: none; border-radius: 8px; font-weight: 800; cursor: pointer; }
         .btn-primary { background: var(--primary); color: white; padding: 12px; width: 100%; }
+        .btn-primary:disabled { background: #94a3b8; }
         .btn-ghost { background: none; color: var(--text-sub); padding: 4px; }
         
         #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
         .modal { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 16px; max-height: 90vh; overflow-y: auto; }
+        
+        #loading-toast { 
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #334155; color: white; padding: 8px 16px; border-radius: 20px;
+            font-size: 0.8rem; display: none; z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -68,6 +75,7 @@
 </header>
 
 <div class="container" id="theme-list"></div>
+<div id="loading-toast">保存中...</div>
 
 <div id="overlay">
     <div class="modal">
@@ -86,12 +94,41 @@
 </div>
 
 <script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxKnq7gH0whL9et7by2lfAP_aV7G15Eo8nmkyF2GbJxLHHlaJIWekmJ4x0eSEUPbfNr/exec";
 const themeItems = ["1M>25", "1M>2M", "ALL緑", "1D=赤", "成長", "RSP>21", "QQQE>21"];
-let themes = JSON.parse(localStorage.getItem('theme_app_data')) || [];
+let themes = [];
 
-function save() {
-    localStorage.setItem('theme_app_data', JSON.stringify(themes));
-    render();
+// データの読み込み
+async function load() {
+    const list = document.getElementById('theme-list');
+    list.innerHTML = '<p style="text-align:center; color:var(--text-sub); margin-top:40px;">データを同期中...</p>';
+    try {
+        const response = await fetch(GAS_URL);
+        themes = await response.json();
+        render();
+    } catch (e) {
+        console.error("読み込み失敗:", e);
+        list.innerHTML = '<p style="text-align:center; color:red; margin-top:40px;">読み込みに失敗しました。</p>';
+    }
+}
+
+// データの保存
+async function save() {
+    const toast = document.getElementById('loading-toast');
+    toast.style.display = 'block';
+    render(); 
+    
+    try {
+        await fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify(themes)
+        });
+        toast.style.display = 'none';
+    } catch (e) {
+        console.error("保存失敗:", e);
+        alert("データの保存に失敗しました。");
+        toast.style.display = 'none';
+    }
 }
 
 function openModal(themeId = null) {
@@ -139,12 +176,10 @@ function handleSave() {
     if (!name) return alert("テーマ名を入力してください");
 
     if (editId) {
-        // 編集
         const theme = themes.find(t => t.id == editId);
         theme.name = name;
         theme.tags = checks;
     } else {
-        // 新規作成
         const now = new Date();
         const timestamp = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
         themes.push({
@@ -221,7 +256,7 @@ function render() {
     lucide.createIcons();
 }
 
-window.onload = render;
+window.onload = load;
 </script>
 </body>
 </html>
