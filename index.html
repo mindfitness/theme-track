@@ -25,25 +25,21 @@
         
         .container { padding: 12px; max-width: 600px; margin: 0 auto; }
 
-        /* テーマの箱 */
         .theme-section { background: var(--card); padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .theme-header { border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 12px; }
         .theme-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
         .theme-title { font-size: 1.1rem; font-weight: 900; color: var(--text-main); margin: 0; }
         .theme-date { font-size: 0.65rem; color: var(--text-sub); margin-top: 2px; }
 
-        /* テーマに付与されたタグ */
         .tag-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
         .tag { font-size: 0.65rem; background: #eff6ff; padding: 2px 8px; border-radius: 4px; border: 1px solid #dbeafe; color: var(--primary); font-weight: bold; }
 
-        /* 銘柄リスト */
         .stock-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
         .stock-badge { 
             background: #f1f5f9; padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 0.8rem;
             display: flex; align-items: center; gap: 4px; border: 1px solid #e2e8f0;
         }
 
-        /* フォーム類 */
         .input-group { margin-bottom: 12px; }
         input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
         
@@ -60,7 +56,6 @@
         .btn-primary { background: var(--primary); color: white; padding: 12px; width: 100%; }
         .btn-ghost { background: none; color: var(--text-sub); padding: 4px; }
         
-        /* モーダル */
         #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
         .modal { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 16px; max-height: 90vh; overflow-y: auto; }
     </style>
@@ -76,7 +71,8 @@
 
 <div id="overlay">
     <div class="modal">
-        <h3 style="margin-top:0;">新規テーマ作成</h3>
+        <h3 id="modal-title" style="margin-top:0;">新規テーマ作成</h3>
+        <input type="hidden" id="edit-theme-id">
         <div class="input-group">
             <input type="text" id="theme-name" placeholder="テーマ名 (例: AI半導体)">
         </div>
@@ -84,17 +80,13 @@
         <div id="theme-check-grid" class="check-grid"></div>
         <div style="display: flex; gap: 8px; margin-top: 20px;">
             <button onclick="closeModal()" class="btn btn-ghost" style="flex:1;">戻る</button>
-            <button onclick="createTheme()" class="btn btn-primary" style="flex:2;">作成</button>
+            <button id="save-btn" onclick="handleSave()" class="btn btn-primary" style="flex:2;">保存</button>
         </div>
     </div>
 </div>
 
 <script>
-// --- テーマに付与する項目定義 ---
-const themeItems = [
-    "1M>25", "1M>2M", "ALL緑", "1D=赤", "成長", "RSP>21", "QQQE>21",
-];
-
+const themeItems = ["1M>25", "1M>2M", "ALL緑", "1D=赤", "成長", "RSP>21", "QQQE>21"];
 let themes = JSON.parse(localStorage.getItem('theme_app_data')) || [];
 
 function save() {
@@ -102,37 +94,68 @@ function save() {
     render();
 }
 
-function openModal() {
+function openModal(themeId = null) {
     const grid = document.getElementById('theme-check-grid');
-    grid.innerHTML = themeItems.map(item => `
-        <label class="check-box">
-            <input type="checkbox" value="${item}" onchange="this.parentElement.classList.toggle('checked', this.checked)">
-            ${item}
-        </label>
-    `).join('');
+    const modalTitle = document.getElementById('modal-title');
+    const nameInput = document.getElementById('theme-name');
+    const editIdInput = document.getElementById('edit-theme-id');
+    
+    let selectedTags = [];
+    
+    if (themeId) {
+        const theme = themes.find(t => t.id === themeId);
+        modalTitle.innerText = "テーマの編集";
+        nameInput.value = theme.name;
+        editIdInput.value = themeId;
+        selectedTags = theme.tags;
+    } else {
+        modalTitle.innerText = "新規テーマ作成";
+        nameInput.value = '';
+        editIdInput.value = '';
+    }
+
+    grid.innerHTML = themeItems.map(item => {
+        const isChecked = selectedTags.includes(item);
+        return `
+            <label class="check-box ${isChecked ? 'checked' : ''}">
+                <input type="checkbox" value="${item}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.classList.toggle('checked', this.checked)">
+                ${item}
+            </label>
+        `;
+    }).join('');
+    
     document.getElementById('overlay').style.display = 'flex';
 }
 
 function closeModal() {
     document.getElementById('overlay').style.display = 'none';
-    document.getElementById('theme-name').value = '';
 }
 
-function createTheme() {
+function handleSave() {
     const name = document.getElementById('theme-name').value;
+    const editId = document.getElementById('edit-theme-id').value;
     const checks = Array.from(document.querySelectorAll('#theme-check-grid input:checked')).map(el => el.value);
+    
     if (!name) return alert("テーマ名を入力してください");
 
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+    if (editId) {
+        // 編集
+        const theme = themes.find(t => t.id == editId);
+        theme.name = name;
+        theme.tags = checks;
+    } else {
+        // 新規作成
+        const now = new Date();
+        const timestamp = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+        themes.push({
+            id: Date.now(),
+            name: name,
+            date: timestamp,
+            tags: checks,
+            stocks: []
+        });
+    }
     
-    themes.push({
-        id: Date.now(),
-        name: name,
-        date: timestamp,
-        tags: checks,
-        stocks: []
-    });
     save();
     closeModal();
 }
@@ -170,7 +193,10 @@ function render() {
                         <h2 class="theme-title">${theme.name}</h2>
                         <div class="theme-date">作成日: ${theme.date}</div>
                     </div>
-                    <button class="btn btn-ghost" onclick="deleteTheme(${theme.id})"><i data-lucide="trash-2" style="width:14px;"></i></button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-ghost" onclick="openModal(${theme.id})"><i data-lucide="edit-3" style="width:14px;"></i></button>
+                        <button class="btn btn-ghost" onclick="deleteTheme(${theme.id})"><i data-lucide="trash-2" style="width:14px;"></i></button>
+                    </div>
                 </div>
                 <div class="tag-container">
                     ${theme.tags.map(tag => `<span class="tag"># ${tag}</span>`).join('')}
