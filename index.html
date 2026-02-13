@@ -2,121 +2,200 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>US Stock Theme Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Theme Tracker</title>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        .theme-card { transition: all 0.3s ease; }
-        .theme-card:hover { transform: translateY(-2px); }
+        :root { 
+            --primary: #2563eb; 
+            --bg: #f8fafc; 
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: -apple-system, sans-serif; 
+            background: var(--bg); margin: 0; padding-bottom: env(safe-area-inset-bottom);
+            color: var(--text-main); font-size: 14px;
+        }
+
+        header { background: white; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        
+        .container { padding: 12px; max-width: 600px; margin: 0 auto; }
+
+        /* テーマの箱 */
+        .theme-section { background: var(--card); padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .theme-header { border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 12px; }
+        .theme-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .theme-title { font-size: 1.1rem; font-weight: 900; color: var(--text-main); margin: 0; }
+        .theme-date { font-size: 0.65rem; color: var(--text-sub); margin-top: 2px; }
+
+        /* テーマに付与されたタグ */
+        .tag-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .tag { font-size: 0.65rem; background: #eff6ff; padding: 2px 8px; border-radius: 4px; border: 1px solid #dbeafe; color: var(--primary); font-weight: bold; }
+
+        /* 銘柄リスト */
+        .stock-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .stock-badge { 
+            background: #f1f5f9; padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 0.8rem;
+            display: flex; align-items: center; gap: 4px; border: 1px solid #e2e8f0;
+        }
+
+        /* フォーム類 */
+        .input-group { margin-bottom: 12px; }
+        input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
+        
+        .check-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
+        .check-box { 
+            background: #f1f5f9; padding: 6px 4px; border-radius: 8px; font-size: 0.65rem; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; text-align: center; border: 1px solid transparent;
+            min-height: 40px; cursor: pointer;
+        }
+        .check-box.checked { background: #dbeafe; border-color: var(--primary); color: var(--primary); }
+        .check-box input { display: none; }
+
+        .btn { border: none; border-radius: 8px; font-weight: 800; cursor: pointer; }
+        .btn-primary { background: var(--primary); color: white; padding: 12px; width: 100%; }
+        .btn-ghost { background: none; color: var(--text-sub); padding: 4px; }
+        
+        /* モーダル */
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+        .modal { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 16px; max-height: 90vh; overflow-y: auto; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+<body>
 
-    <div class="max-w-5xl mx-auto">
-        <header class="mb-8 flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-gray-800">🇺🇸 Theme Tracker</h1>
-            <button onclick="addTheme()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition">
-                + 新規テーマ
-            </button>
-        </header>
+<header>
+    <h1 style="margin:0; font-size:1.1rem; font-weight:900;">Theme Tracking</h1>
+    <button onclick="openModal()" style="border:none; background:none; color:var(--primary); font-weight:bold; font-size:0.9rem;">+ テーマ作成</button>
+</header>
 
-        <div id="themeContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            </div>
+<div class="container" id="theme-list"></div>
+
+<div id="overlay">
+    <div class="modal">
+        <h3 style="margin-top:0;">新規テーマ作成</h3>
+        <div class="input-group">
+            <input type="text" id="theme-name" placeholder="テーマ名 (例: AI半導体)">
+        </div>
+        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-sub); margin-bottom: 4px;">テーマの属性項目</div>
+        <div id="theme-check-grid" class="check-grid"></div>
+        <div style="display: flex; gap: 8px; margin-top: 20px;">
+            <button onclick="closeModal()" class="btn btn-ghost" style="flex:1;">戻る</button>
+            <button onclick="createTheme()" class="btn btn-primary" style="flex:2;">作成</button>
+        </div>
     </div>
+</div>
 
-    <script>
-        let themes = JSON.parse(localStorage.getItem('stockThemes')) || [];
+<script>
+// --- テーマに付与する項目定義 ---
+const themeItems = [
+    "1M>25", "ALL緑", "1D=赤", "成長", "RSP>21", "QQQE>21",
+];
 
-        // データの保存
-        function save() {
-            localStorage.setItem('stockThemes', JSON.stringify(themes));
-            render();
-        }
+let themes = JSON.parse(localStorage.getItem('theme_app_data')) || [];
 
-        // テーマの追加
-        function addTheme() {
-            const name = prompt("テーマ名を入力してください (例: AI・半導体)");
-            if (name) {
-                themes.push({ id: Date.now(), name: name, stocks: [] });
-                save();
-            }
-        }
+function save() {
+    localStorage.setItem('theme_app_data', JSON.stringify(themes));
+    render();
+}
 
-        // テーマの削除
-        function deleteTheme(id) {
-            if (confirm("このテーマを削除しますか？")) {
-                themes = themes.filter(t => t.id !== id);
-                save();
-            }
-        }
+function openModal() {
+    const grid = document.getElementById('theme-check-grid');
+    grid.innerHTML = themeItems.map(item => `
+        <label class="check-box">
+            <input type="checkbox" value="${item}" onchange="this.parentElement.classList.toggle('checked', this.checked)">
+            ${item}
+        </label>
+    `).join('');
+    document.getElementById('overlay').style.display = 'flex';
+}
 
-        // テーマ名の編集
-        function editTheme(id) {
-            const theme = themes.find(t => t.id === id);
-            const newName = prompt("テーマ名を変更:", theme.name);
-            if (newName) {
-                theme.name = newName;
-                save();
-            }
-        }
+function closeModal() {
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('theme-name').value = '';
+}
 
-        // 銘柄の追加
-        function addStock(themeId) {
-            const symbol = prompt("ティッカーシンボルを入力 (例: NVDA)");
-            if (symbol) {
-                const theme = themes.find(t => t.id === themeId);
-                theme.stocks.push(symbol.toUpperCase());
-                save();
-            }
-        }
+function createTheme() {
+    const name = document.getElementById('theme-name').value;
+    const checks = Array.from(document.querySelectorAll('#theme-check-grid input:checked')).map(el => el.value);
+    if (!name) return alert("テーマ名を入力してください");
 
-        // 銘柄の削除
-        function removeStock(themeId, stockIndex) {
-            const theme = themes.find(t => t.id === themeId);
-            theme.stocks.splice(stockIndex, 1);
-            save();
-        }
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-        // 画面描画
-        function render() {
-            const container = document.getElementById('themeContainer');
-            container.innerHTML = '';
+    themes.push({
+        id: Date.now(),
+        name: name,
+        date: timestamp,
+        tags: checks,
+        stocks: []
+    });
+    save();
+    closeModal();
+}
 
-            themes.forEach(theme => {
-                const card = document.createElement('div');
-                card.className = 'theme-card bg-white rounded-xl shadow-md overflow-hidden border border-gray-200';
-                
-                let stocksHtml = theme.stocks.map((s, index) => `
-                    <div class="flex justify-between items-center bg-gray-50 p-2 mb-2 rounded border border-gray-100 group">
-                        <span class="font-mono font-bold text-blue-800">${s}</span>
-                        <button onclick="removeStock(${theme.id}, ${index})" class="text-gray-400 hover:text-red-500 text-sm">✕</button>
+function addStock(themeId) {
+    const symbol = prompt("追加するティッカーシンボルを入力:");
+    if (symbol) {
+        const theme = themes.find(t => t.id === themeId);
+        theme.stocks.push(symbol.toUpperCase());
+        save();
+    }
+}
+
+function removeStock(themeId, index) {
+    if (confirm("銘柄を削除しますか？")) {
+        themes.find(t => t.id === themeId).stocks.splice(index, 1);
+        save();
+    }
+}
+
+function deleteTheme(id) {
+    if (confirm("このテーマ（箱）を削除しますか？")) {
+        themes = themes.filter(t => t.id !== id);
+        save();
+    }
+}
+
+function render() {
+    const list = document.getElementById('theme-list');
+    list.innerHTML = themes.map(theme => `
+        <section class="theme-section">
+            <div class="theme-header">
+                <div class="theme-title-row">
+                    <div>
+                        <h2 class="theme-title">${theme.name}</h2>
+                        <div class="theme-date">作成日: ${theme.date}</div>
                     </div>
-                `).join('');
-
-                card.innerHTML = `
-                    <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                        <h2 class="font-bold text-lg text-gray-700 cursor-pointer" onclick="editTheme(${theme.id})">${theme.name}</h2>
-                        <button onclick="deleteTheme(${theme.id})" class="text-gray-400 hover:text-red-600 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="Scan 19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
+                    <button class="btn btn-ghost" onclick="deleteTheme(${theme.id})"><i data-lucide="trash-2" style="width:14px;"></i></button>
+                </div>
+                <div class="tag-container">
+                    ${theme.tags.map(tag => `<span class="tag"># ${tag}</span>`).join('')}
+                </div>
+            </div>
+            
+            <div class="stock-list">
+                ${theme.stocks.map((s, i) => `
+                    <div class="stock-badge">
+                        ${s}
+                        <span onclick="removeStock(${theme.id}, ${i})" style="cursor:pointer; color:#94a3b8; margin-left:4px;">✕</span>
                     </div>
-                    <div class="p-4">
-                        <div class="min-h-[50px]">
-                            ${stocksHtml || '<p class="text-gray-400 text-sm italic">銘柄なし</p>'}
-                        </div>
-                        <button onclick="addStock(${theme.id})" class="mt-4 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 hover:border-blue-400 hover:text-blue-500 transition">
-                            + 銘柄追加
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
+                `).join('')}
+                <button onclick="addStock(${theme.id})" style="border:1px dashed #cbd5e1; background:none; border-radius:20px; padding:4px 12px; color:#64748b; font-size:0.8rem; font-weight:bold; cursor:pointer;">+ 追加</button>
+            </div>
+        </section>
+    `).join('');
+    
+    if (themes.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:var(--text-sub); margin-top:40px;">テーマが登録されていません。</p>';
+    }
+    lucide.createIcons();
+}
 
-        // 初期描画
-        render();
-    </script>
+window.onload = render;
+</script>
 </body>
 </html>
