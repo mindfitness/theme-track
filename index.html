@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テーママップ — 米国株セクター分析</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Space Mono',monospace;background:#07090d;color:#c8d8e8;min-height:100vh}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#07090d}
+::-webkit-scrollbar-thumb{background:#1a2535;border-radius:3px}
+
+.top-bar{position:sticky;top:0;z-index:100;background:#07090d;border-bottom:1px solid #1a2535;padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.logo{font-size:11px;letter-spacing:.18em;color:#3a7bd5;font-weight:700;white-space:nowrap;margin-right:4px}
+.subtitle{font-size:10px;color:#2a4560;letter-spacing:.1em;white-space:nowrap}
+input[type=text]{background:#0d1520;border:1px solid #1a2535;border-radius:4px;padding:7px 12px;color:#c8d8e8;font-family:'Space Mono',monospace;font-size:12px;outline:none;transition:border .15s}
+input[type=text]:focus{border-color:#3a7bd5}
+input[type=text]::placeholder{color:#2a4560}
+.search-theme{width:180px}
+.search-ticker{width:110px;text-transform:uppercase}
+.sort-group{display:flex;gap:4px;margin-left:auto}
+.sort-btn{background:#0d1520;border:1px solid #1a2535;border-radius:3px;color:#2a4560;font-family:'Space Mono',monospace;font-size:10px;padding:6px 10px;cursor:pointer;transition:all .15s;letter-spacing:.05em}
+.sort-btn.on,.sort-btn:hover{border-color:#3a7bd5;color:#3a7bd5}
+
+.ticker-banner{display:none;background:#0d1520;border:1px solid #1e3a5f;border-radius:4px;padding:8px 14px;font-size:11px;color:#8ab4d4;margin:8px 20px 0;max-width:1200px}
+.ticker-banner.show{display:block}
+.ticker-banner a{color:#3a7bd5;cursor:pointer;text-decoration:underline}
+
+.stats-bar{font-size:10px;color:#2a4560;padding:8px 20px;border-bottom:1px solid #1a2535;letter-spacing:.08em}
+.stats-bar span{color:#4a7aaa}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:#1a2535}
+
+/* Card */
+.card{background:#07090d;padding:14px 16px 0;display:flex;flex-direction:column;gap:0;transition:background .15s}
+.card:hover{background:#0b1220}
+.card.lit{background:#0c1a2e;outline:2px solid #3a7bd5;outline-offset:-2px}
+
+.card-top{display:flex;align-items:flex-start;gap:8px;padding-bottom:10px}
+.card-num{font-size:10px;color:#2a4560;min-width:26px;padding-top:2px;flex-shrink:0}
+.card-name{font-size:13px;font-weight:700;color:#ddeeff;flex:1;line-height:1.3}
+.change-pill{font-size:12px;font-weight:700;padding:2px 8px;border-radius:12px;white-space:nowrap;flex-shrink:0}
+.up{color:#00e676;background:rgba(0,230,118,.1)}
+.dn{color:#ff4060;background:rgba(255,64,96,.1)}
+.neu{color:#4a7aaa;background:rgba(74,122,170,.1)}
+
+.bar-row{height:2px;background:#0d1520;margin:0 0 10px}
+.bar-fill{height:100%;transition:width .5s}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:4px;padding-bottom:12px}
+.chip{font-size:11px;color:#3a6a9a;background:#0c1520;border:1px solid #162030;border-radius:3px;padding:3px 7px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip:hover{color:#7ab4e8;border-color:#2a5070;background:#0f2035}
+.chip.hot{color:#ff4060;border-color:#7a2030;background:#1a0810}
+
+/* Fetch button */
+.fetch-wrap{border-top:1px solid #111c28;padding:8px 0 10px}
+.fetch-btn{font-family:'Space Mono',monospace;font-size:10px;color:#3a7bd5;border:1px solid #1e3a5f;border-radius:3px;padding:4px 12px;cursor:pointer;background:transparent;transition:all .15s;letter-spacing:.05em}
+.fetch-btn:hover{background:rgba(58,123,213,.1)}
+
+/* Perf section */
+.perf-section{display:none;border-top:1px solid #111c28;padding:10px 0 12px}
+.perf-section.open{display:block}
+
+.period-row{display:flex;gap:4px;margin-bottom:10px;align-items:center}
+.period-lbl{font-size:10px;color:#2a4560;letter-spacing:.08em;margin-right:4px}
+.period-tab{font-size:10px;padding:3px 10px;border:1px solid #1a2535;border-radius:3px;cursor:pointer;color:#2a4560;background:#0d1520;transition:all .15s;font-family:'Space Mono',monospace}
+.period-tab:hover,.period-tab.active{border-color:#3a7bd5;color:#3a7bd5}
+
+/* All-periods table */
+.all-periods-table{width:100%;border-collapse:collapse;font-size:11px}
+.all-periods-table th{color:#2a4560;font-weight:400;text-align:right;padding:0 4px 6px;font-size:10px;letter-spacing:.05em}
+.all-periods-table th:first-child{text-align:left}
+.all-periods-table td{padding:3px 4px;border-top:1px solid #0f1c28;white-space:nowrap}
+.all-periods-table td:first-child{color:#8ab4d4;font-weight:700}
+.all-periods-table td:not(:first-child){text-align:right}
+.pct-up{color:#00e676}
+.pct-dn{color:#ff4060}
+.pct-na{color:#2a4560;font-size:10px}
+
+.tp-loading{color:#2a4560;font-size:10px;padding:4px 0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.loading-pulse{animation:pulse 1.2s infinite}
+
+.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:#2a4560;font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span class="logo">■ THEME MAP</span>
+  <span class="subtitle">US EQUITY — 207 THEMES</span>
+  <input class="search-theme" type="text" id="sq" placeholder="テーマを検索...">
+  <input class="search-ticker" type="text" id="tq" placeholder="NVDA">
+  <div class="sort-group">
+    <button class="sort-btn on" onclick="setSort('n',this)">No.</button>
+    <button class="sort-btn" onclick="setSort('up',this)">↑ 上昇</button>
+    <button class="sort-btn" onclick="setSort('dn',this)">↓ 下落</button>
+  </div>
+</div>
+<div class="stats-bar">表示中: <span id="sn">207</span> / 207 &nbsp;|&nbsp; 取得済み: <span id="sf" style="color:#3a7bd5">0</span></div>
+<div class="ticker-banner" id="tbanner"></div>
+<div class="grid" id="grid"></div>
+
+<script>
+const RAW_DATA = [
+  {n:1,name:"銀鉱山",change:0.0,tickers:["AG","CDE","HL","PAAS","WPM"]},
+  {n:2,name:"石炭：原料炭中心",change:0.0,tickers:["AMR","BTU","CNR","HCC","METC","SXC"]},
+  {n:3,name:"金鉱山",change:0.0,tickers:["AEM","AGI","AU","B","CDE","FNV","GFI","HL","HMY","IAG","KGC","NEM","RGLD","WPM"]},
+  {n:4,name:"化学：汎用",change:0.0,tickers:["DOW","LYB"]},
+  {n:5,name:"化学：農業",change:0.0,tickers:["CF","CTVA","NTR","SQM"]},
+  {n:6,name:"加工食品",change:0.0,tickers:["CAG","CPB","GIS","KHC","MKC"]},
+  {n:7,name:"スーパーメジャー：米国",change:0.0,tickers:["CVX","XOM"]},
+  {n:8,name:"リチウム",change:0.0,tickers:["ALB","ATLX","CRML","ELVR","IONR","LAC","RIO","SGML","SLI","SQM"]},
+  {n:9,name:"石油精製",change:0.0,tickers:["DINO","DK","MPC","PARR","PBF","PSX","VLO"]},
+  {n:10,name:"天然ガス：輸出",change:0.0,tickers:["LNG","SRE","VG"]},
+  {n:11,name:"アルミ",change:0.0,tickers:["AA","CENX"]},
+  {n:12,name:"掘削サービス",change:0.0,tickers:["BKR","HAL","SLB","WFRD"]},
+  {n:13,name:"インフラ工事：電力/通信",change:0.0,tickers:["DY","MTZ","MYRG","PWR"]},
+  {n:14,name:"天然ガス：生産",change:0.0,tickers:["AR","CTRA","EQT","EXE","RRC"]},
+  {n:15,name:"食肉",change:0.0,tickers:["PPC","TSN"]},
+  {n:16,name:"銅鉱山",change:0.0,tickers:["ERO","FCX","HBM","IE","SCCO","TECK","TGB","TMQ"]},
+  {n:17,name:"菓子",change:0.0,tickers:["HSY","MDLZ","PEP"]},
+  {n:18,name:"食品小売・量販店",change:0.0,tickers:["COST","KR","TGT","WMT"]},
+  {n:19,name:"電気工事・施工",change:0.0,tickers:["EME","FIX","MTZ","PWR","STRL"]},
+  {n:20,name:"電力：規制事業者",change:0.0,tickers:["AEP","D","DUK","ETR","EXC","NRG","SO","XEL"]},
+  {n:21,name:"アグリビジネス",change:0.0,tickers:["ADM","BG"]},
+  {n:22,name:"電源インフラ",change:0.0,tickers:["AME","AMSC","APH","ETN","HUBB","POWL"]},
+  {n:23,name:"多角化資源",change:0.0,tickers:["BHP","RIO","VALE"]},
+  {n:24,name:"石油探鉱・生産",change:0.0,tickers:["COP","OXY"]},
+  {n:25,name:"タバコ",change:0.0,tickers:["BTI","MO","PM"]},
+  {n:26,name:"データストレージ",change:0.0,tickers:["MU","SNDK","STX","WDC"]},
+  {n:27,name:"電力：IPP",change:0.0,tickers:["AES","BEP","CEG","CWEN","NEE","TLN","VST"]},
+  {n:28,name:"スーパーメジャー：米国外",change:0.0,tickers:["BP","PBR","SHEL","TTE"]},
+  {n:29,name:"アルコール飲料",change:0.0,tickers:["ABEV","BUD","DEO","STZ","TAP"]},
+  {n:30,name:"天然ガス：収集・加工",change:0.0,tickers:["ET","OKE","TRGP"]},
+  {n:31,name:"次世代冷媒",change:0.0,tickers:["CC","SOLS"]},
+  {n:32,name:"掘削機器",change:0.0,tickers:["FTI","NOV","TS"]},
+  {n:33,name:"海洋掘削サービス",change:0.0,tickers:["NE","RIG","VAL"]},
+  {n:34,name:"産業用電池",change:0.0,tickers:["ELVA","ENS","MVST"]},
+  {n:35,name:"日用品",change:0.0,tickers:["CHD","CL","CLX","HLN","KMB","KVUE","PG","REYN","UL"]},
+  {n:36,name:"電気・ガス小売",change:0.0,tickers:["AEE","CMS","CNP","D","DTE","ED","ES","NGG","PEG","SRE","WEC","XEL"]},
+  {n:37,name:"半導体工場インフラ",change:0.0,tickers:["AWI","ETN","POWL","THR","WTS"]},
+  {n:38,name:"空調",change:0.0,tickers:["CARR","LII","TT"]},
+  {n:39,name:"光接続：インフラ",change:0.0,tickers:["AAOI","CIEN","COHR","GLW","KEYS","LITE","POET","SITM","VIAV"]},
+  {n:40,name:"REIT",change:0.0,tickers:["AMT","CCI","DLR","EQIX","O","PLD","SPG","STAG","VTR","WELL"]},
+  {n:41,name:"半導体：材料・消耗品",change:0.0,tickers:["APD","AXTI","ENTG","LIN","PLAB","Q"]},
+  {n:42,name:"ガス小売",change:0.0,tickers:["ATO","BIPC","MDU","NFG","NI","NJR","OGS","SR","SRE","SWX","UGI"]},
+  {n:43,name:"モバイル通信",change:0.0,tickers:["T","TMUS","VZ"]},
+  {n:44,name:"鉄道貨物",change:0.0,tickers:["CNI","CP","CSX","NSC","UNP"]},
+  {n:45,name:"インフラ工事：交通",change:0.0,tickers:["ROAD","TPC"]},
+  {n:46,name:"天然ガス：輸送・需要接続",change:0.0,tickers:["KMI","TRP","WMB"]},
+  {n:47,name:"AIサーバ：受託製造",change:0.0,tickers:["FLEX","JBL","SANM"]},
+  {n:48,name:"ドルストア",change:0.0,tickers:["DG","DLTR"]},
+  {n:49,name:"製薬大手",change:0.0,tickers:["ABBV","AZN","BMY","GSK","JNJ","LLY","MRK","NVO","NVS","PFE","SNY"]},
+  {n:50,name:"産業資材流通",change:0.0,tickers:["FAST","GWW","MSM","WCC"]},
+  {n:51,name:"トラック輸送",change:0.0,tickers:["JBHT","ODFL","XPO"]},
+  {n:52,name:"熱管理インフラ",change:0.0,tickers:["CARR","FLEX","MOD","NVT","TT","VRT"]},
+  {n:53,name:"総合飲料",change:0.0,tickers:["CELH","KDP","KO","MNST","PEP"]},
+  {n:54,name:"ケーブルTV",change:0.0,tickers:["CHTR","CMCSA"]},
+  {n:55,name:"コンテンツ・スタジオ",change:0.0,tickers:["CMCSA","DIS","FOXA","NWS"]},
+  {n:56,name:"水道",change:0.0,tickers:["AWK","SBS","WTRG"]},
+  {n:57,name:"光接続：トランシーバ",change:0.0,tickers:["AAOI","COHR","FN","MRVL","MTSI"]},
+  {n:58,name:"高配当",change:0.0,tickers:["ABBV","AMGN","BMY","COP","CVX","LMT","MRK","TXN","VZ"]},
+  {n:59,name:"DRAM品薄",change:0.0,tickers:["AMAT","AMKR","KLAC","LRCX","MU","ONTO","RMBS"]},
+  {n:60,name:"産業ガス",change:0.0,tickers:["APD","LIN"]},
+  {n:61,name:"ラック内接続",change:0.0,tickers:["ALAB","APH","CRDO"]},
+  {n:62,name:"アメカジ",change:0.0,tickers:["AEO","ANF","GAP","LEVI","URBN","VFC"]},
+  {n:63,name:"ウラン",change:0.0,tickers:["AEC","CCJ","DNN","EU","ISOU","LEU","NXE","UEC","URG","UROY","UUUU"]},
+  {n:64,name:"資本財リース",change:0.0,tickers:["AER","FTAI","GATX","TRN","URI"]},
+  {n:65,name:"半導体製造装置：部品",change:0.0,tickers:["AEIS","ICHR","MKSI","UCTT"]},
+  {n:66,name:"半導体製造装置：前工程",change:0.0,tickers:["ACLS","AMAT","ASML","KLAC","LRCX"]},
+  {n:67,name:"宇宙：衛星通信",change:0.0,tickers:["ASTS","GSAT","IRDM","SATS","VSAT"]},
+  {n:68,name:"機械：多角化",change:0.0,tickers:["DOV","EMR","ETN","HON","ITW","PH","TXT"]},
+  {n:69,name:"天然ガス掘削：米",change:0.0,tickers:["ACDC","HP","LBRT","PTEN","PUMP"]},
+  {n:70,name:"施設衛生管理",change:0.0,tickers:["CTAS","ROL","RTO"]},
+  {n:71,name:"鉄道製造・リース",change:0.0,tickers:["FSTR","GATX","GBX","OSK","RAIL","TRN","WAB"]},
+  {n:72,name:"防衛：推進システム",change:0.0,tickers:["BWXT","GE","WWD"]},
+  {n:73,name:"住設専門商社",change:0.0,tickers:["FERG","POOL","QXO","SITE","WSO"]},
+  {n:74,name:"病院運営",change:0.0,tickers:["CAH","COR","DVA","EHC","HCA","THC","UHS"]},
+  {n:75,name:"廃棄物・リサイクル",change:0.0,tickers:["CLH","GFL","RSG","VLTO","WCN","WM"]},
+  {n:76,name:"施設設備",change:0.0,tickers:["ALLE","APG","AYI","JCI","OTIS","XYL"]},
+  {n:77,name:"医薬品卸",change:0.0,tickers:["CAH","COR","HSIC","MCK"]},
+  {n:78,name:"レアアース",change:0.0,tickers:["AREC","CRML","IDR","IPX","MP","NB","PPTA","TMC","TMRC","UAMY","USAR","UUUU"]},
+  {n:79,name:"広告テック",change:0.0,tickers:["APP","DV","MGNI","TTD","U","ZETA"]},
+  {n:80,name:"原発機器（現行）",change:0.0,tickers:["BWXT","CCJ","FLS","GEV"]},
+  {n:81,name:"製紙・段ボール",change:0.0,tickers:["GPK","IP","PKG","SON","SW"]},
+  {n:82,name:"アクティブウェア",change:0.0,tickers:["AS","BIRK","DECK","LULU","NKE","ONON"]},
+  {n:83,name:"金属・機能性パッケージ",change:0.0,tickers:["ATR","AVY","BALL","CCK"]},
+  {n:84,name:"オンサイト電源",change:0.0,tickers:["BE","CAT","CMI","GEV","GNRC"]},
+  {n:85,name:"建築塗料",change:0.0,tickers:["PPG","SHW"]},
+  {n:86,name:"防衛：素材・部材",change:0.0,tickers:["ATI","DCO","HWM","HXL"]},
+  {n:87,name:"ライドシェア",change:0.0,tickers:["LYFT","UBER"]},
+  {n:88,name:"アウトドア製品",change:0.0,tickers:["BC","GOLF","THO"]},
+  {n:89,name:"動画配信サービス",change:0.0,tickers:["DIS","GOOGL","NFLX"]},
+  {n:90,name:"ホームビルダー",change:0.0,tickers:["DHI","KBH","LEN","MTH","NVR","PHM","TMHC","TOL"]},
+  {n:91,name:"防衛：保守部品・MRO",change:0.0,tickers:["AIR","HEI","LOAR","TDG","VSEC"]},
+  {n:92,name:"食品卸売",change:0.0,tickers:["PFGC","SYY","USFD"]},
+  {n:93,name:"ディスカウント衣料",change:0.0,tickers:["BURL","OLLI","ROST","TJX"]},
+  {n:94,name:"ロボ：産業/医療",change:0.0,tickers:["ISRG","ROK","TER"]},
+  {n:95,name:"自動車メンテナンス",change:0.0,tickers:["AZO","GPC","ORLY"]},
+  {n:96,name:"AI半導体：コア銘柄",change:0.0,tickers:["AMD","AVGO","MRVL","MU","NVDA"]},
+  {n:97,name:"半導体受託製造",change:0.0,tickers:["AMKR","ASX","GFS","INTC","SKYT","TSEM","TSM","UMC"]},
+  {n:98,name:"次世代電源",change:0.0,tickers:["ADI","ETN","MPWR","ON","VICR","VRT"]},
+  {n:99,name:"機械：建設/農業/資源",change:0.0,tickers:["CAT","CMI","DE","OSK","TTC"]},
+  {n:100,name:"防衛：統合",change:0.0,tickers:["BA","GD","HII","LMT","NOC","RTX","TXT"]},
+  {n:101,name:"ラグジュアリー",change:0.0,tickers:["RL","TPR"]},
+  {n:102,name:"住宅設備：屋内",change:0.0,tickers:["ALLE","FBIN","MAS","REZI","SWK"]},
+  {n:103,name:"ファーストフード",change:0.0,tickers:["DPZ","MCD","QSR","WEN","WING","YUM"]},
+  {n:104,name:"PE・プライベトクレジト",change:0.0,tickers:["APO","ARES","BX","CG","KKR","OWL","TPG"]},
+  {n:105,name:"損害保険",change:0.0,tickers:["AIG","ALL","CB","HIG","PGR","TRV"]},
+  {n:106,name:"防衛：サービス",change:0.0,tickers:["AMTM","BAH","CACI","KBR","LDOS","PLTR","PSN","VSEC","VVX"]},
+  {n:107,name:"中古車販売",change:0.0,tickers:["AN","CVNA","KMX","LAD"]},
+  {n:108,name:"防衛：電子・情報通信",change:0.0,tickers:["ATRO","CTS","CW","KE","LHX","MOG.A","MRCY","SKYT"]},
+  {n:109,name:"光接続：スイッチ",change:0.0,tickers:["ANET","AVGO","CLS","CSCO","HPE","MRVL"]},
+  {n:110,name:"大衆車",change:0.0,tickers:["F","GM","STLA"]},
+  {n:111,name:"石炭：一般炭",change:0.0,tickers:["ARLP","HNRG"]},
+  {n:112,name:"鉄",change:0.0,tickers:["CLF","CMC","NUE","RS","STLD"]},
+  {n:113,name:"コンサル",change:0.0,tickers:["ACN","BAH","CTSH","IBM"]},
+  {n:114,name:"バイオテック：総合",change:0.0,tickers:["ABBV","AMGN","BIIB","GILD","REGN"]},
+  {n:115,name:"住宅設備：外装",change:0.0,tickers:["CSL","JHX","OC","POOL","SHW","WMS"]},
+  {n:116,name:"住宅ローン組成",change:0.0,tickers:["PFSI","RKT","UWMC"]},
+  {n:117,name:"インフラ設計",change:0.0,tickers:["ACM","J","STN","TTEK"]},
+  {n:118,name:"バイオテック：特化",change:0.0,tickers:["ARGX","INSM","VRTX"]},
+  {n:119,name:"OpenAI関連",change:0.0,tickers:["AMD","AVGO","MSFT","NVDA","ORCL"]},
+  {n:120,name:"保険仲介",change:0.0,tickers:["AJG","AON","BRO","MMC","RYAN","WTW"]},
+  {n:121,name:"地銀",change:0.0,tickers:["BPOP","CFG","CFR","FHN","HWC","KEY","MTB","PB","RF","SSB","WAL","ZION"]},
+  {n:122,name:"ホテル・リゾート",change:0.0,tickers:["H","HLT","IHG","MAR","WH"]},
+  {n:123,name:"ライブエンタメ",change:0.0,tickers:["FWONK","LYV","TKO"]},
+  {n:124,name:"カスタムAI半導体",change:0.0,tickers:["AMKR","ARM","ASX","AVGO","MRVL","TSM"]},
+  {n:125,name:"人型ロボ：筋骨・神経",change:0.0,tickers:["ADI","ALGM","HXL","ON","RRX","TEL"]},
+  {n:126,name:"アナログ半導体：パワー",change:0.0,tickers:["MPWR","ON"]},
+  {n:127,name:"Appleインテリジェンス",change:0.0,tickers:["AAPL","AMKR","ARM","GLW","SWKS","TSM"]},
+  {n:128,name:"半導体製造装置：後工程",change:0.0,tickers:["AEHR","CAMT","COHU","ONTO","TER"]},
+  {n:129,name:"宅配デリバリー",change:0.0,tickers:["CART","DASH","UBER"]},
+  {n:130,name:"不動産サービス",change:0.0,tickers:["CBRE","JLL"]},
+  {n:131,name:"骨材・基礎資材",change:0.0,tickers:["ACA","CRH","EXP","KNF","MLM","USLM","VMC"]},
+  {n:132,name:"生命保険",change:0.0,tickers:["AFL","GL","MET","MFC","PRI","PRU"]},
+  {n:133,name:"アナログ半導体：汎用",change:0.0,tickers:["ADI","DIOD","TXN"]},
+  {n:134,name:"高PER",change:0.0,tickers:["AXON","COST","CRWD","PLTR","WMT"]},
+  {n:135,name:"おもちゃ",change:0.0,tickers:["HAS","MAT"]},
+  {n:136,name:"アナログ半導体：センサ",change:0.0,tickers:["ALGM","MCHP","NXPI","SLAB"]},
+  {n:137,name:"人型ロボ：脳",change:0.0,tickers:["NVDA","QCOM","TSLA"]},
+  {n:138,name:"自動車部品",change:0.0,tickers:["ALV","APTV","BWA","GNTX","LEA","MGA"]},
+  {n:139,name:"太陽光発電",change:0.0,tickers:["CSIQ","ENPH","FSLR","NXT","TE"]},
+  {n:140,name:"次世代セル",change:0.0,tickers:["AMPX","ENVX","QS","SES","SLDP"]},
+  {n:141,name:"消費者レンディング",change:0.0,tickers:["AFRM","ALLY","AXP","COF","FCFS","KLAR","OMF","SLM","SYF","UPST"]},
+  {n:142,name:"投資銀行",change:0.0,tickers:["EVR","GS","JEF","LAZ","MS","RJF"]},
+  {n:143,name:"物流サービス",change:0.0,tickers:["CHRW","EXPD","FDX","GXO","UPS"]},
+  {n:144,name:"ネットメディア",change:0.0,tickers:["GOOGL","META","PINS","RDDT","ROKU","SNAP"]},
+  {n:145,name:"自動運転",change:0.0,tickers:["AMBA","AUR","MBLY","QCOM","TSLA"]},
+  {n:146,name:"住宅設備：流通",change:0.0,tickers:["BLDR","FND","HD","LOW","TSCO"]},
+  {n:147,name:"AIサーバ：自社ブランド",change:0.0,tickers:["DELL","HPE","SMCI"]},
+  {n:148,name:"インフラ計測",change:0.0,tickers:["BMI","ITRI","XYL"]},
+  {n:149,name:"生命科学：創薬受託",change:0.0,tickers:["CRL","ICLR","IQV","MEDP"]},
+  {n:150,name:"オンライン旅行予約",change:0.0,tickers:["ABNB","BKNG","EXPE","TRIP"]},
+  {n:151,name:"化粧品・パーソナルケア",change:0.0,tickers:["EL","ELF","KVUE","PG","ULTA"]},
+  {n:152,name:"中国EV",change:0.0,tickers:["LI","NIO","XPEV"]},
+  {n:153,name:"生命科学：消耗品",change:0.0,tickers:["RGEN","TECH","WST"]},
+  {n:154,name:"ハイパースケーラー",change:0.0,tickers:["AMZN","GOOGL","META","MSFT","ORCL"]},
+  {n:155,name:"ソフト：エンタープライズ",change:0.0,tickers:["CRM","MSFT","NOW","ORCL"]},
+  {n:156,name:"行政DX",change:0.0,tickers:["AXON","MSI","TYL"]},
+  {n:157,name:"メガバンク",change:0.0,tickers:["BAC","C","JPM","WFC"]},
+  {n:158,name:"ライフスタイル・家具",change:0.0,tickers:["SGI","SN","W","WSM"]},
+  {n:159,name:"中国AI",change:0.0,tickers:["BABA","BIDU","GDS","KC","VNET"]},
+  {n:160,name:"原発機器（次世代）",change:0.0,tickers:["BWXT","GEV","OKLO","SMR"]},
+  {n:161,name:"医療保険＋診療",change:0.0,tickers:["CI","CNC","CVS","ELV","HUM","UNH"]},
+  {n:162,name:"CDN",change:0.0,tickers:["AKAM","FSLY","NET"]},
+  {n:163,name:"ソフト：バックオフィス",change:0.0,tickers:["DOCU","INTU","WDAY"]},
+  {n:164,name:"決済インフラ",change:0.0,tickers:["MA","V"]},
+  {n:165,name:"CPU",change:0.0,tickers:["AMD","ARM","INTC"]},
+  {n:166,name:"生命科学：総合",change:0.0,tickers:["AVTR","DHR","TMO"]},
+  {n:167,name:"カジュアルダイニング",change:0.0,tickers:["DRI","TXRH"]},
+  {n:168,name:"ストレージ ソリュション",change:0.0,tickers:["NTAP","PSTG"]},
+  {n:169,name:"不動産検索PF",change:0.0,tickers:["CSGP","Z"]},
+  {n:170,name:"グラファイト",change:0.0,tickers:["EAF","NMG","NVX","WWR"]},
+  {n:171,name:"ロボ：物流/サービス",change:0.0,tickers:["AMRC","MIDD","RR","SERV","SYM","TNC"]},
+  {n:172,name:"ソフト：業界特化",change:0.0,tickers:["ADSK","APPF","BSY","GWRE","MANH","PCOR","ROP","TRMB","TTAN"]},
+  {n:173,name:"カフェ",change:0.0,tickers:["BROS","SBUX"]},
+  {n:174,name:"決済テック",change:0.0,tickers:["PYPL","SHOP","TOST","XYZ"]},
+  {n:175,name:"旅客航空：メガキャリア",change:0.0,tickers:["AAL","DAL","UAL"]},
+  {n:176,name:"IOT×エッジAI",change:0.0,tickers:["AMBA","AMBQ","LSCC","NXPI","QCOM","SYNA"]},
+  {n:177,name:"生命科学：精密分析",change:0.0,tickers:["A","BRKR","ILMN","MTD","RVTY","TXG","WAT"]},
+  {n:178,name:"スマートグラス",change:0.0,tickers:["LSCC","META","QCOM","SNAP","VUZI","WRBY"]},
+  {n:179,name:"サイバー：統合",change:0.0,tickers:["CHKP","FTNT","PANW"]},
+  {n:180,name:"ソフト：コミュニケション",change:0.0,tickers:["FIVN","RNG","ZM"]},
+  {n:181,name:"半導体設計ソフト",change:0.0,tickers:["CDNS","SNPS"]},
+  {n:182,name:"高品質ファーストフード",change:0.0,tickers:["CMG","SHAK"]},
+  {n:183,name:"ソフト：マーケ・販売",change:0.0,tickers:["ADBE","FIG","HUBS","KVYO","SHOP","TWLO"]},
+  {n:184,name:"不動産テック",change:0.0,tickers:["COMP","OPEN"]},
+  {n:185,name:"サイバー：クラウド",change:0.0,tickers:["NET","ZS"]},
+  {n:186,name:"アナログ半導体：通信",change:0.0,tickers:["QRVO","SWKS"]},
+  {n:187,name:"バイオテック：ゲノム",change:0.0,tickers:["ALNY","CRSP","INCY","MRNA","NTRA","VKTX"]},
+  {n:188,name:"ソフト：AI利用基盤",change:0.0,tickers:["DDOG","MDB","PATH","SNOW"]},
+  {n:189,name:"クルーズ船",change:0.0,tickers:["CCL","NCLH","RCL","VIK"]},
+  {n:190,name:"サイバー：データ保護",change:0.0,tickers:["CVLT","RBRK"]},
+  {n:191,name:"電力貯蔵",change:0.0,tickers:["EOSE","FLNC","GWH","STEM"]},
+  {n:192,name:"ソフト：生産性・開発",change:0.0,tickers:["FROG","GTLB","MNDY","TEAM"]},
+  {n:193,name:"AI創薬",change:0.0,tickers:["ABSI","CERT","GH","RLAY","RXRX","SDGR","TEM"]},
+  {n:194,name:"次世代銀行",change:0.0,tickers:["HOOD","SOFI"]},
+  {n:195,name:"BNPL",change:0.0,tickers:["AFRM","KLAR","SEZL"]},
+  {n:196,name:"ネオクラウド",change:0.0,tickers:["APLD","CIFR","CORZ","CRWV","DOCN","HUT","IREN","NBIS","NUAI","WULF"]},
+  {n:197,name:"人型ロボ：目",change:0.0,tickers:["ARBE","CGNX","OUST"]},
+  {n:198,name:"軍用ドローン",change:0.0,tickers:["AVAV","DPRO","KRMN","KTOS","MRCY","ONDS","RCAT"]},
+  {n:199,name:"暗号資産・ブロックチェン",change:0.0,tickers:["BLSH","CLSK","COIN","CRCL","FIGR","MARA","MSTR","XYZ"]},
+  {n:200,name:"保険DX",change:0.0,tickers:["CLOV","LMND","OSCR"]},
+  {n:201,name:"eVTOL",change:0.0,tickers:["ACHR","EVEX","EVTL","JOBY","VTOL"]},
+  {n:202,name:"サイバー：端末保護",change:0.0,tickers:["CRWD","S"]},
+  {n:203,name:"旅客航空：LCC",change:0.0,tickers:["ALK","LUV"]},
+  {n:204,name:"量子コンピュータ",change:0.0,tickers:["IONQ","QBTS","QUBT","RGTI"]},
+  {n:205,name:"サイバー：ID/監視/診断",change:0.0,tickers:["DDOG","DT","OKTA","TENB"]},
+  {n:206,name:"宇宙：インフラ",change:0.0,tickers:["FLY","LUNR","RDW","RKLB"]},
+  {n:207,name:"宇宙：地球観測",change:0.0,tickers:["BKSY","PL","SATL","SPIR"]},
+];
+
+const API_KEY = '12343bfe66954ec39519d3c3834578d5';
+const RATE_LIMIT_DELAY = 8000;
+const MAX_SYMBOLS_PER_REQUEST = 8;
+
+// ticker -> themes map
+const tickerMap = {};
+RAW_DATA.forEach(d => d.tickers.forEach(t => {
+  if (!tickerMap[t]) tickerMap[t] = [];
+  tickerMap[t].push(d);
+}));
+
+let sortMode = 'n', activeTicker = '', filterQ = '';
+const perfCache = {};
+const fetchedThemes = {};
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function pillClass(c) { return c > 0 ? 'up' : c < 0 ? 'dn' : 'neu'; }
+function barColor(c) { return c > 0 ? '#00e676' : c < 0 ? '#ff4060' : '#2a4560'; }
+function barW(c) { return Math.min(Math.abs(c) / 9.5 * 100, 100).toFixed(1); }
+function fmtPct(v) {
+  if (v === null || v === undefined) return '<span class="pct-na">N/A</span>';
+  const s = v >= 0 ? '+' : '';
+  return `<span class="${v >= 0 ? 'pct-up' : 'pct-dn'}">${s}${v.toFixed(2)}%</span>`;
+}
+
+function buildCard(d) {
+  const isUp = d.change >= 0;
+  const sign = d.change > 0 ? '+' : '';
+  const chips = d.tickers.map(t => {
+    const hot = t === activeTicker;
+    return `<span class="chip${hot ? ' hot' : ''}" data-ticker="${t}" onclick="clickChip('${t}')">${t}</span>`;
+  }).join('');
+
+  return `<div class="card${activeTicker && d.tickers.includes(activeTicker) ? ' lit' : ''}" id="card-${d.n}">
+    <div class="card-top">
+      <span class="card-num">#${d.n}</span>
+      <span class="card-name">${d.name}</span>
+      <span class="change-pill ${pillClass(d.change)}">${sign}${d.change.toFixed(1)}%</span>
+    </div>
+    <div class="bar-row"><div class="bar-fill" style="width:${barW(d.change)}%;background:${barColor(d.change)}"></div></div>
+    <div class="chips">${chips}</div>
+    <div class="fetch-wrap">
+      <button class="fetch-btn" id="fbtn-${d.n}" onclick="togglePerf(${d.n}, this)">▶ 騰落率を取得</button>
+    </div>
+    <div class="perf-section" id="perf-${d.n}">
+      <div id="perf-body-${d.n}"></div>
+    </div>
+  </div>`;
+}
+
+function render() {
+  let data = [...RAW_DATA];
+  const q = filterQ.toLowerCase();
+  if (q) data = data.filter(d => d.name.toLowerCase().includes(q) || d.tickers.some(t => t.toLowerCase().includes(q)));
+  if (sortMode === 'up') data.sort((a, b) => b.change - a.change);
+  else if (sortMode === 'dn') data.sort((a, b) => a.change - b.change);
+
+  document.getElementById('sn').textContent = data.length;
+  document.getElementById('grid').innerHTML = data.length
+    ? data.map(d => buildCard(d)).join('')
+    : '<div class="empty">該当テーマなし</div>';
+
+  // restore open perf sections
+  Object.keys(fetchedThemes).forEach(n => {
+    const sec = document.getElementById(`perf-${n}`);
+    const btn = document.getElementById(`fbtn-${n}`);
+    if (sec) {
+      sec.classList.add('open');
+      if (btn) btn.textContent = '▼ 閉じる';
+      renderAllPeriods(parseInt(n));
+    }
+  });
+}
+
+function setSort(m, btn) {
+  sortMode = m;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  render();
+}
+
+// ---- ticker search / highlight ----
+function clickChip(t) {
+  activeTicker = activeTicker === t ? '' : t;
+  document.getElementById('tq').value = activeTicker;
+  showBanner(activeTicker);
+  render();
+  if (activeTicker) scrollToFirst(activeTicker);
+}
+
+function showBanner(t) {
+  const b = document.getElementById('tbanner');
+  if (!t) { b.className = 'ticker-banner'; return; }
+  const themes = tickerMap[t] || [];
+  if (!themes.length) {
+    b.className = 'ticker-banner show';
+    b.innerHTML = `<b>${t}</b> はどのテーマにも含まれていません`;
+    return;
+  }
+  b.className = 'ticker-banner show';
+  b.innerHTML = `<b style="color:#7ab4e8">${t}</b> 含まれるテーマ: `
+    + themes.map(d => `<a onclick="scrollToCard(${d.n})">#${d.n} ${d.name}</a>`).join(' &nbsp;|&nbsp; ');
+}
+
+function scrollToFirst(t) {
+  const themes = tickerMap[t] || [];
+  if (themes.length) {
+    setTimeout(() => {
+      const el = document.getElementById(`card-${themes[0].n}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }
+}
+
+function scrollToCard(n) {
+  const el = document.getElementById(`card-${n}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+document.getElementById('sq').addEventListener('input', e => { filterQ = e.target.value; render(); });
+document.getElementById('tq').addEventListener('input', e => {
+  activeTicker = e.target.value.trim().toUpperCase();
+  showBanner(activeTicker);
+  render();
+  if (activeTicker) scrollToFirst(activeTicker);
+});
+document.getElementById('tq').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    activeTicker = e.target.value.trim().toUpperCase();
+    showBanner(activeTicker);
+    render();
+    if (activeTicker) scrollToFirst(activeTicker);
+  }
+});
+
+// ---- Performance fetch ----
+async function fetchPerf(n, tickers, period, onProgress) {
+  const key = `${n}-${period}`;
+  if (perfCache[key]) return perfCache[key];
+
+  const results = {};
+
+  if (period === '1day') {
+    const batches = [];
+    for (let i = 0; i < tickers.length; i += MAX_SYMBOLS_PER_REQUEST)
+      batches.push(tickers.slice(i, i + MAX_SYMBOLS_PER_REQUEST));
+
+    for (let bi = 0; bi < batches.length; bi++) {
+      if (bi > 0) {
+        for (let t = RATE_LIMIT_DELAY / 1000; t > 0; t--) {
+          onProgress && onProgress(`待機中... ${t}秒`);
+          await sleep(1000);
+        }
+      }
+      const batch = batches[bi];
+      onProgress && onProgress(`1D 取得中 ${bi * MAX_SYMBOLS_PER_REQUEST + 1}〜${Math.min((bi+1)*MAX_SYMBOLS_PER_REQUEST, tickers.length)} / ${tickers.length}`);
+      try {
+        const resp = await fetch(`https://api.twelvedata.com/quote?symbol=${batch.join(',')}&apikey=${API_KEY}`);
+        const data = await resp.json();
+        for (const sym of batch) {
+          const q = batch.length === 1 ? data : data[sym];
+          results[sym] = (!q || q.status === 'error' || q.percent_change == null) ? null : parseFloat(q.percent_change);
+        }
+      } catch { batch.forEach(s => { results[s] = null; }); }
+    }
+
+  } else {
+    const outputSize = period === '5day' ? 6 : 11;
+    for (let i = 0; i < tickers.length; i++) {
+      const sym = tickers[i];
+      if (i > 0) {
+        for (let t = RATE_LIMIT_DELAY / 1000; t > 0; t--) {
+          onProgress && onProgress(`待機中... ${t}秒 (${i}/${tickers.length})`);
+          await sleep(1000);
+        }
+      }
+      onProgress && onProgress(`${period === '5day' ? '5D' : '10D'} 取得中 ${sym} (${i+1}/${tickers.length})`);
+      try {
+        const resp = await fetch(`https://api.twelvedata.com/time_series?symbol=${sym}&interval=1day&outputsize=${outputSize}&apikey=${API_KEY}`);
+        const data = await resp.json();
+        if (!data || data.status === 'error' || !data.values || data.values.length < 2) {
+          results[sym] = null;
+        } else {
+          const vals = data.values;
+          const newest = parseFloat(vals[0].close);
+          const oldest = parseFloat(vals[vals.length - 1].open || vals[vals.length - 1].close);
+          results[sym] = ((newest - oldest) / oldest) * 100;
+        }
+      } catch { results[sym] = null; }
+    }
+  }
+
+  perfCache[key] = results;
+  return results;
+}
+
+async function togglePerf(n, btn) {
+  const sec = document.getElementById(`perf-${n}`);
+  if (sec.classList.contains('open')) {
+    sec.classList.remove('open');
+    btn.textContent = '▶ 騰落率を取得';
+    return;
+  }
+  sec.classList.add('open');
+  btn.textContent = '▼ 閉じる';
+
+  const themeData = RAW_DATA.find(d => d.n === n);
+  const body = document.getElementById(`perf-body-${n}`);
+  body.innerHTML = `<div class="tp-loading loading-pulse" id="prog-${n}">1D / 5D / 10D 一括取得中...</div>`;
+
+  // fetch all 3 periods in parallel
+  await Promise.all([
+    fetchPerf(n, themeData.tickers, '1day',  msg => { const e = document.getElementById(`prog-${n}`); if (e) e.textContent = '[1D] ' + msg; }),
+    fetchPerf(n, themeData.tickers, '5day',  () => {}),
+    fetchPerf(n, themeData.tickers, '10day', () => {}),
+  ]);
+
+  renderAllPeriods(n);
+
+  if (!fetchedThemes[n]) {
+    fetchedThemes[n] = true;
+    document.getElementById('sf').textContent = Object.keys(fetchedThemes).length;
+  }
+}
+
+function renderAllPeriods(n) {
+  const themeData = RAW_DATA.find(d => d.n === n);
+  if (!themeData) return;
+  const body = document.getElementById(`perf-body-${n}`);
+  if (!body) return;
+
+  const r1 = perfCache[`${n}-1day`] || {};
+  const r5 = perfCache[`${n}-5day`] || {};
+  const r10 = perfCache[`${n}-10day`] || {};
+
+  // sort by 1D desc
+  const syms = themeData.tickers.slice().sort((a, b) => {
+    const va = r1[a] ?? -Infinity;
+    const vb = r1[b] ?? -Infinity;
+    return vb - va;
+  });
+
+  const rows = syms.map(sym => `
+    <tr>
+      <td>${sym}</td>
+      <td>${fmtPct(r1[sym] ?? null)}</td>
+      <td>${fmtPct(r5[sym] ?? null)}</td>
+      <td>${fmtPct(r10[sym] ?? null)}</td>
+    </tr>`).join('');
+
+  body.innerHTML = `
+    <table class="all-periods-table">
+      <thead>
+        <tr>
+          <th>銘柄</th>
+          <th>1D</th>
+          <th>5D</th>
+          <th>10D</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// Init
+render();
+</script>
+</body>
+</html>
