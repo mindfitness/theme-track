@@ -551,13 +551,18 @@ async function togglePerf(n, btn) {
     document.getElementById('sf').textContent = Object.keys(fetchedThemes).length;
   }
 
-  // 更新済みテーマが1件以上あれば自動で「更新済み」ソートに切替
+  // 常にrenderを呼んでカードpillを最新化、初回のみソート切替
   const fetchedBtn = document.getElementById('sort-fetched-btn');
   if (fetchedBtn && sortMode !== 'fetched') {
-    setSort('fetched', fetchedBtn);
+    setSort('fetched', fetchedBtn); // 内部でrender()が呼ばれる
   } else {
-    render();
+    render(); // ソート済みでも必ずpillを再描画
   }
+  // render後にperf sectionを再展開（renderで一度閉じるため）
+  const sec2 = document.getElementById(`perf-${n}`);
+  const btn2 = document.getElementById(`fbtn-${n}`);
+  if (sec2) { sec2.classList.add('open'); }
+  if (btn2) { btn2.textContent = '▼ 閉じる'; }
 }
 
 function renderAllPeriods(n) {
