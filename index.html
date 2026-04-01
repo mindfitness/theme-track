@@ -99,6 +99,7 @@ input[type=text]::placeholder{color:#2a4560}
     <button class="sort-btn on" onclick="setSort('n',this)">No.</button>
     <button class="sort-btn" onclick="setSort('up',this)">↑ 上昇</button>
     <button class="sort-btn" onclick="setSort('dn',this)">↓ 下落</button>
+    <button class="sort-btn" id="sort-fetched-btn" onclick="setSort('fetched',this)">★ 更新済み</button>
   </div>
 </div>
 <div class="stats-bar">表示中: <span id="sn">207</span> / 207 &nbsp;|&nbsp; 取得済み: <span id="sf" style="color:#3a7bd5">0</span></div>
@@ -343,8 +344,16 @@ function fmtPct(v) {
 }
 
 function buildCard(d) {
-  const isUp = d.change >= 0;
   const sign = d.change > 0 ? '+' : '';
+  const c5 = d.change5 !== undefined ? d.change5 : null;
+  const c10 = d.change10 !== undefined ? d.change10 : null;
+  const perfPills = d.fetched
+    ? `<div style="display:flex;gap:4px;flex-shrink:0;flex-direction:column;align-items:flex-end">
+        <span class="change-pill ${pillClass(d.change)}" style="font-size:10px">${sign}${d.change.toFixed(1)}% <span style="color:#2a4560;font-weight:400">1D</span></span>
+        <span class="change-pill ${pillClass(c5 ?? 0)}" style="font-size:10px">${c5 !== null ? (c5>=0?'+':'')+c5.toFixed(1)+'%' : 'N/A'} <span style="color:#2a4560;font-weight:400">5D</span></span>
+        <span class="change-pill ${pillClass(c10 ?? 0)}" style="font-size:10px">${c10 !== null ? (c10>=0?'+':'')+c10.toFixed(1)+'%' : 'N/A'} <span style="color:#2a4560;font-weight:400">10D</span></span>
+      </div>`
+    : `<span class="change-pill neu" style="font-size:10px">-- 未取得</span>`;
   const chips = d.tickers.map(t => {
     const hot = t === activeTicker;
     return `<span class="chip${hot ? ' hot' : ''}" data-ticker="${t}" onclick="clickChip('${t}')">${t}</span>`;
@@ -354,7 +363,7 @@ function buildCard(d) {
     <div class="card-top">
       <span class="card-num">#${d.n}</span>
       <span class="card-name">${d.name}</span>
-      <span class="change-pill ${pillClass(d.change)}">${sign}${d.change.toFixed(1)}%</span>
+      ${perfPills}
     </div>
     <div class="bar-row"><div class="bar-fill" style="width:${barW(d.change)}%;background:${barColor(d.change)}"></div></div>
     <div class="chips">${chips}</div>
@@ -373,6 +382,7 @@ function render() {
   if (q) data = data.filter(d => d.name.toLowerCase().includes(q) || d.tickers.some(t => t.toLowerCase().includes(q)));
   if (sortMode === 'up') data.sort((a, b) => b.change - a.change);
   else if (sortMode === 'dn') data.sort((a, b) => a.change - b.change);
+  else if (sortMode === 'fetched') data.sort((a, b) => (b.fetched ? 1 : 0) - (a.fetched ? 1 : 0) || b.change - a.change);
 
   document.getElementById('sn').textContent = data.length;
   document.getElementById('grid').innerHTML = data.length
@@ -536,9 +546,17 @@ async function togglePerf(n, btn) {
 
   renderAllPeriods(n);
 
-  if (!fetchedThemes[n]) {
+ if (!fetchedThemes[n]) {
     fetchedThemes[n] = true;
     document.getElementById('sf').textContent = Object.keys(fetchedThemes).length;
+  }
+
+  // 更新済みテーマが1件以上あれば自動で「更新済み」ソートに切替
+  const fetchedBtn = document.getElementById('sort-fetched-btn');
+  if (fetchedBtn && sortMode !== 'fetched') {
+    setSort('fetched', fetchedBtn);
+  } else {
+    render();
   }
 }
 
@@ -548,9 +566,18 @@ function renderAllPeriods(n) {
   const body = document.getElementById(`perf-body-${n}`);
   if (!body) return;
 
-  const r1 = perfCache[`${n}-1day`] || {};
-  const r5 = perfCache[`${n}-5day`] || {};
+  const r1  = perfCache[`${n}-1day`]  || {};
+  const r5  = perfCache[`${n}-5day`]  || {};
   const r10 = perfCache[`${n}-10day`] || {};
+
+  const avg = (cache) => {
+    const vals = themeData.tickers.map(t => cache[t]).filter(v => v !== null && v !== undefined);
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  const a1 = avg(r1), a5 = avg(r5), a10 = avg(r10);
+  if (a1 !== null) { themeData.change = a1; themeData.fetched = true; }
+  if (a5 !== null)  themeData.change5  = a5;
+  if (a10 !== null) themeData.change10 = a10;
 
   // sort by 1D desc
   const syms = themeData.tickers.slice().sort((a, b) => {
